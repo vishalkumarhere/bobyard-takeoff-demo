@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Takeoff Accuracy Ops Review</title>
+<meta name="description" content="Operational analytics on AI assisted construction takeoff: accuracy and estimator review time by project type and trade, where retraining pays back first, and how many review hours that frees up. Synthetic data, candidate work sample.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <a class="brandmark" href="https://vishal-kumar-portfolio-six.vercel.app" target="_blank" rel="noopener"><span class="dot"></span>VISHAL KUMAR</a>
+    <a class="pill-link" href="https://github.com/vishalkumarhere/bobyard-takeoff-demo" target="_blank" rel="noopener">View source on GitHub &#8599;</a>
+  </div>
+
+  <header>
+    <div class="eyebrow-row">
+      <span class="eyebrow">Operations analytics, month one</span>
+      <span class="eyebrow warn">Synthetic data</span>
+    </div>
+    <h1 class="title">Where AI takeoff still costs estimators time</h1>
+    <p class="lede">A first quarterly review of AI assisted takeoff across 1,515 projects, the kind of report a first data hire ships in month one. It breaks takeoff accuracy, estimator review hours, and bid cycle time down by project type and trade, ranks project types by the review hours that errors actually cost, and sizes what targeted retraining plus a confidence gate would give back to the estimating team.</p>
+    <div class="banner" role="note"><span class="ic">NOTE</span><span>Illustrative data modeled on Bobyard's public product structure. Not a real customer's or the company's actual data. Built by Vishal Kumar as a candidate work sample, not an official Bobyard artifact.</span></div>
+  </header>
+
+  <section>
+    <div class="controls" aria-label="Dashboard filters">
+      <div class="control">
+        <span class="label" id="lblTrade">Trade</span>
+        <div class="pill-toggle" id="tradeToggle" role="group" aria-labelledby="lblTrade"></div>
+      </div>
+      <div class="control">
+        <span class="label" id="lblMetric">Chart metric</span>
+        <div class="pill-toggle" id="metricToggle" role="group" aria-labelledby="lblMetric"></div>
+      </div>
+      <div class="control">
+        <label class="label" for="target">Accuracy target</label>
+        <div class="slider-row">
+          <input type="range" id="target" min="85" max="97" step="0.5" value="92">
+          <span class="kval" id="targetVal">92.0%</span>
+        </div>
+        <div class="hint">Share of takeoff line items within quantity tolerance. Types below this are flagged everywhere on the page.</div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="stat-grid" id="kpis"></div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-head">
+          <div><div class="panel-title" id="barTitle">Takeoff error rate by project type</div><div class="panel-sub" id="barSub"></div></div>
+        </div>
+        <div class="chart-wrap" id="barChart"></div>
+        <div class="legend"><span><i class="sw c1"></i>Within limit</span><span><i class="sw c2"></i>Over limit, flagged &#9650;</span><span><i class="sw" style="background:var(--accent-2);width:2px;height:12px;border-radius:0"></i>Error limit (100% minus accuracy target)</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <div><div class="panel-title">Volume against error rate</div><div class="panel-sub">Bubble size is review hours spent this quarter</div></div>
+        </div>
+        <div class="chart-wrap" id="scatter"></div>
+        <div class="legend"><span><i class="sw c1 dot"></i>Within limit</span><span><i class="sw c2 dot"></i>Over limit</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="panel">
+      <div class="panel-head">
+        <div><div class="panel-title">Project types ranked by review hours at stake</div><div class="panel-sub">Review hours at stake are the estimator hours spent correcting takeoff errors, not total review time. Click a header to sort.</div></div>
+      </div>
+      <div class="table-scroll">
+        <table id="rankTable">
+          <thead><tr>
+            <th class="num" data-col="rank">#<span class="arr"></span></th>
+            <th data-col="name">Project type<span class="arr"></span></th>
+            <th class="num" data-col="projects">Projects<span class="arr"></span></th>
+            <th class="num" data-col="acc">AI accuracy<span class="arr"></span></th>
+            <th class="num" data-col="review">Review hrs / project<span class="arr"></span></th>
+            <th class="num" data-col="cycle">Cycle days<span class="arr"></span></th>
+            <th class="num" data-col="stake">Hrs at stake<span class="arr"></span></th>
+            <th data-col="action">Suggested route<span class="arr"></span></th>
+          </tr></thead>
+          <tbody id="rankBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="grid-2b">
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Findings</div></div>
+        <div class="findings" id="findings"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div class="panel-title">Action plan, in priority order</div></div>
+        <ol class="actions" id="actions"></ol>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:0;">
+    <div class="panel">
+      <div class="panel-head">
+        <div><div class="panel-title">Decision impact: how far to take the retraining program</div><div class="panel-sub">Improve project types in ranked order and see what it gives back to estimators each quarter.</div></div>
+      </div>
+      <div class="impact-grid">
+        <div class="impact-controls">
+          <div>
+            <label class="label" for="nTypes">Project types improved</label>
+            <div class="slider-row"><input type="range" id="nTypes" min="0" max="8" step="1" value="3"><span class="kval" id="nTypesVal">3</span></div>
+            <div class="hint" id="nTypesList"></div>
+          </div>
+          <div>
+            <label class="label" for="cut">Error correction time removed per improved type</label>
+            <div class="slider-row"><input type="range" id="cut" min="20" max="80" step="5" value="50"><span class="kval" id="cutVal">50%</span></div>
+          </div>
+          <div>
+            <label class="label" for="rate">Loaded estimator cost per hour</label>
+            <div class="slider-row"><input type="range" id="rate" min="55" max="130" step="5" value="85"><span class="kval" id="rateVal">$85</span></div>
+          </div>
+          <div class="impact-out" id="impactOut"></div>
+        </div>
+        <div>
+          <div class="label" style="margin-bottom:8px;">Review hours saved per quarter by number of types improved</div>
+          <div class="chart-wrap" id="curve"></div>
+          <p class="assume" id="assume"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    Built by Vishal Kumar as a candidate work sample for the Senior Data Analyst, Operations role. All projects, accuracy figures, review hours, and cycle times are synthetic, shaped like takeoff and estimating data (project type, trade, line item tolerance, estimator review time) and generated deterministically in <span class="mono">app.js</span>. Every number on the page is derived live from the same project level table, so the tiles, charts, ranking, findings, and impact estimate cannot drift out of sync.
+    <br>Source on <a href="https://github.com/vishalkumarhere/bobyard-takeoff-demo" target="_blank" rel="noopener">GitHub</a>. Portfolio at <a href="https://vishal-kumar-portfolio-six.vercel.app" target="_blank" rel="noopener">vishal-kumar-portfolio-six.vercel.app</a>.
+  </footer>
+
+</div>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
