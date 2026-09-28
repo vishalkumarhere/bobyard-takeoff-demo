@@ -138,9 +138,10 @@ const Viz = (() => {
     points.forEach(p => {
       if (!p.showLabel) return;
       // Label above the bubble, anchored so it never runs past the plot edges
-      const lx = X(p.x), anchor = lx < width * 0.22 ? 'start' : lx > width * 0.78 ? 'end' : 'middle';
+      const half = p.label.length * 3.1; // approximate half width of an 11px label
+      const lx = Math.min(width - pad.r - half, Math.max(pad.l + half, X(p.x)));
       const ly = Y(p.y) - (p.r || 5) - 7;
-      s += `<text class="axis-ink" style="pointer-events:none;paint-order:stroke;stroke:${surface};stroke-width:3px" x="${anchor === 'start' ? lx - 6 : anchor === 'end' ? lx + 6 : lx}" y="${ly < pad.t + 4 ? Y(p.y) + (p.r || 5) + 14 : ly}" text-anchor="${anchor}">${esc(p.label)}</text>`;
+      s += `<text class="axis-ink" style="pointer-events:none;paint-order:stroke;stroke:${surface};stroke-width:3px" x="${lx}" y="${ly < pad.t + 4 ? Y(p.y) + (p.r || 5) + 14 : ly}" text-anchor="middle">${esc(p.label)}</text>`;
     });
     el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="group">${s}</svg>`;
     bindTips(el, tips);
