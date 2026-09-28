@@ -137,31 +137,40 @@ const Viz = (() => {
     });
     points.forEach(p => {
       if (!p.showLabel) return;
-      const lx = X(p.x), anchorEnd = lx > width * 0.62;
-      s += `<text class="axis-ink" style="pointer-events:none" x="${lx + (anchorEnd ? -1 : 1) * ((p.r || 5) + 6)}" y="${Y(p.y) + 4}" text-anchor="${anchorEnd ? 'end' : 'start'}">${esc(p.label)}</text>`;
+      // Label above the bubble, anchored so it never runs past the plot edges
+      const lx = X(p.x), anchor = lx < width * 0.22 ? 'start' : lx > width * 0.78 ? 'end' : 'middle';
+      const ly = Y(p.y) - (p.r || 5) - 7;
+      s += `<text class="axis-ink" style="pointer-events:none;paint-order:stroke;stroke:${surface};stroke-width:3px" x="${anchor === 'start' ? lx - 6 : anchor === 'end' ? lx + 6 : lx}" y="${ly < pad.t + 4 ? Y(p.y) + (p.r || 5) + 14 : ly}" text-anchor="${anchor}">${esc(p.label)}</text>`;
     });
     el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="group">${s}</svg>`;
     bindTips(el, tips);
   }
 
   // Single series line with an area wash, a highlighted current point, and a crosshair tooltip.
-  function line(el, { points, current, xFmt = v => v, yFmt = v => v, xLabel, tipFor, width = 520, height = 230, color }) {
+  function line(el, { points, current, xFmt = v => v, yFmt = v => v, xLabel, tipFor, width = 520, height = 230, color, zero = true }) {
     const pad = { l: 58, r: 20, t: 16, b: 40 };
     const xs = points.map(p => p.x), ys = points.map(p => p.y);
     const xmin = Math.min(...xs), xmax = Math.max(...xs);
-    const ym = niceMax(Math.max(...ys) * 1.08 || 1);
+    // Line charts may start above zero (zero: false) since position, not length, carries the value
+    let y0 = 0, ym = niceMax(Math.max(...ys) * 1.08 || 1);
+    if (!zero) {
+      const lo = Math.min(...ys), hi = Math.max(...ys), span = (hi - lo) || Math.abs(hi) * 0.1 || 1;
+      const step = niceStep(span * 1.6, 4);
+      y0 = Math.floor((lo - span * 0.3) / step) * step;
+      ym = Math.ceil((hi + span * 0.2) / step) * step;
+    }
     const X = v => pad.l + ((v - xmin) / (xmax - xmin || 1)) * (width - pad.l - pad.r);
-    const Y = v => height - pad.b - (v / ym) * (height - pad.t - pad.b);
+    const Y = v => height - pad.b - ((v - y0) / (ym - y0)) * (height - pad.t - pad.b);
     const c = color || css('--viz-1');
     let s = '';
-    ticks(0, ym, 4).forEach(t => {
+    ticks(y0, ym, 4).forEach(t => {
       s += `<line class="gridline" x1="${pad.l}" x2="${width - pad.r}" y1="${Y(t)}" y2="${Y(t)}"/><text class="axis" x="${pad.l - 8}" y="${Y(t) + 3}" text-anchor="end">${yFmt(t)}</text>`;
     });
     points.forEach(p => { s += `<text class="axis" x="${X(p.x)}" y="${height - pad.b + 16}" text-anchor="middle">${xFmt(p.x)}</text>`; });
     s += `<text class="axis" x="${(pad.l + width - pad.r) / 2}" y="${height - 4}" text-anchor="middle">${esc(xLabel)}</text>`;
-    s += `<line class="baseline" x1="${pad.l}" x2="${width - pad.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+    s += `<line class="baseline" x1="${pad.l}" x2="${width - pad.r}" y1="${Y(y0)}" y2="${Y(y0)}"/>`;
     const d = points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x)},${Y(p.y)}`).join(' ');
-    s += `<path d="${d} L${X(xmax)},${Y(0)} L${X(xmin)},${Y(0)} Z" fill="${c}" fill-opacity=".1"/>`;
+    s += `<path d="${d} L${X(xmax)},${Y(y0)} L${X(xmin)},${Y(y0)} Z" fill="${c}" fill-opacity=".1"/>`;
     s += `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
     const surface = css('--surface') || '#0E121B';
     const tips = [];
@@ -171,7 +180,7 @@ const Viz = (() => {
       const isCur = current != null && p.x === current;
       s += `<g class="mark" data-tip="${i}" tabindex="0" role="img" aria-label="${esc(xFmt(p.x))}: ${esc(yFmt(p.y))}">
         <rect class="hit" x="${X(p.x) - colW / 2}" y="${pad.t}" width="${colW}" height="${height - pad.t - pad.b}"/>
-        ${isCur ? `<line class="gridline" x1="${X(p.x)}" x2="${X(p.x)}" y1="${pad.t}" y2="${Y(0)}" style="stroke:rgba(255,255,255,.25)"/>` : ''}
+        ${isCur ? `<line class="gridline" x1="${X(p.x)}" x2="${X(p.x)}" y1="${pad.t}" y2="${Y(y0)}" style="stroke:rgba(255,255,255,.25)"/>` : ''}
         <circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${isCur ? 6 : 3.5}" fill="${isCur ? css('--viz-3') : c}" stroke="${surface}" stroke-width="2"/>
       </g>`;
       if (isCur) s += `<text class="val" x="${X(p.x)}" y="${Y(p.y) - 12}" text-anchor="${X(p.x) > width - 80 ? 'end' : 'middle'}">${esc(yFmt(p.y))}</text>`;
@@ -269,7 +278,7 @@ const Viz = (() => {
   const fmt = {
     int: v => Math.round(v).toLocaleString('en-US'),
     k: v => Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(0) + 'K' : Math.abs(v) >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toString(),
-    usd: v => '$' + (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e3 ? (v / 1e3).toFixed(0) + 'K' : Math.round(v)),
+    usd: v => (v < 0 ? '-$' : '$') + (Math.abs(v) >= 1e6 ? (Math.abs(v) / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e3 ? (Math.abs(v) / 1e3).toFixed(0) + 'K' : Math.round(Math.abs(v))),
     pct: (v, d = 1) => (v * 100).toFixed(d) + '%',
   };
 
